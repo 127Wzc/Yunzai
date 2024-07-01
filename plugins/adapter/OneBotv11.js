@@ -141,7 +141,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     const array = []
     for (const i of Array.isArray(msg) ? msg : [msg])
       if (typeof i === "object")
-        array.push({ ...i.data, type: i.type })
+        array.push({ ...i.data, type: i.type, name: i.data.name || i.data.file})
       else
         array.push({ type: "text", text: String(i) })
     return array
@@ -149,6 +149,13 @@ Bot.adapter.push(new class OneBotv11Adapter {
 
   async getMsg(data, message_id) {
     const msg = (await data.bot.sendApi("get_msg", { message_id })).data
+    if (msg?.message)
+      msg.message = this.parseMsg(msg.message)
+    return msg
+  }
+
+  async getLocalFilePath(data, file_id) {
+    const msg = (await data.bot.sendApi("get_file", { file_id })).data
     if (msg?.message)
       msg.message = this.parseMsg(msg.message)
     return msg
@@ -597,6 +604,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
       getInfo: () => this.getFriendInfo(i),
       getAvatarUrl: () => i.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`,
       thumbUp: times => this.sendLike(i, times),
+      getLocalFilePath: file_id => this.getLocalFilePath(i,file_id)
     }
   }
 

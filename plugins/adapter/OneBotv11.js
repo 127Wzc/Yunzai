@@ -154,7 +154,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     return msg
   }
 
-  async getLocalFilePath(data, file_id) {
+  async getLocalFileInfo(data, file_id) {
     const msg = (await data.bot.sendApi("get_file", { file_id })).data
     if (msg?.message)
       msg.message = this.parseMsg(msg.message)
@@ -604,7 +604,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
       getInfo: () => this.getFriendInfo(i),
       getAvatarUrl: () => i.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`,
       thumbUp: times => this.sendLike(i, times),
-      getLocalFilePath: file_id => this.getLocalFilePath(i,file_id)
+      getLocalFileInfo: file_id => this.getLocalFileInfo(i,file_id)
     }
   }
 

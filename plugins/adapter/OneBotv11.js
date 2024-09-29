@@ -32,10 +32,12 @@ Bot.adapter.push(new class OneBotv11Adapter {
     )
   }
 
-  async makeFile(file) {
-    file = await Bot.Buffer(file, { http: true })
+  async makeFile(file, opts) {
+    file = await Bot.Buffer(file, {
+      http: true, size: 10485760, ...opts,
+    })
     if (Buffer.isBuffer(file))
-      file = `base64://${file.toString("base64")}`
+      return `base64://${file.toString("base64")}`
     return file
   }
 
@@ -503,7 +505,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     Bot.makeLog("info", `发送好友文件：${name}(${file})`, `${data.self_id} => ${data.user_id}`)
     return data.bot.sendApi("upload_private_file", {
       user_id: data.user_id,
-      file: await this.makeFile(file),
+      file: await this.makeFile(file, { file: true }),
       name,
     })
   }
@@ -513,7 +515,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     return data.bot.sendApi("upload_group_file", {
       group_id: data.group_id,
       folder,
-      file: await this.makeFile(file),
+      file: await this.makeFile(file, { file: true }),
       name,
     })
   }

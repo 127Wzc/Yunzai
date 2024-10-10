@@ -103,6 +103,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     return this.sendMsg(msg, message => {
       Bot.makeLog("info", `发送好友消息：${this.makeLog(message)}`, `${data.self_id} => ${data.user_id}`)
       data.bot.sendApi("send_msg", {
+        message_type: "private",
         user_id: data.user_id,
         message,
       })
@@ -113,6 +114,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     return this.sendMsg(msg, message => {
       Bot.makeLog("info", `发送群消息：${this.makeLog(message)}`, `${data.self_id} => ${data.group_id}`)
       return data.bot.sendApi("send_msg", {
+        message_type: "group",
         group_id: data.group_id,
         message,
       })

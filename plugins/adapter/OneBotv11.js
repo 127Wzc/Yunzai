@@ -131,6 +131,14 @@ Bot.adapter.push(new class OneBotv11Adapter {
     }, msg => this.sendGroupForwardMsg(data, msg))
   }
 
+  setEmojiLike(data, message_id, emoji_id) {
+    Bot.makeLog("info", `回应群消息：${this.makeLog(message_id)}`, `${data.emoji_id}`)
+      return data.bot.sendApi("set_msg_emoji_like", {
+        emoji_id: emoji_id,
+        message_id: message_id,
+      })
+  }
+
   
 
   sendGuildMsg(data, msg) {
@@ -654,7 +662,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
       ...i,
       getInfo: () => this.getMemberInfo(i),
       getAvatarUrl: () => i.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`,
-      poke: () => this.sendGroupMsg(i, { type: "poke", qq: user_id }),
+      poke: () => this.pokeMember(i, qq),
       mute: duration => this.setGroupBan(i, i.user_id, duration),
       kick: reject_add_request => this.setGroupKick(i, i.user_id, reject_add_request),
       get is_friend() { return data.bot.fl.has(user_id) },
@@ -710,6 +718,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
       getMemberMap: () => this.getMemberMap(i),
       pickMember: user_id => this.pickMember(i, group_id, user_id),
       pokeMember: qq => this.pokeMember(i, qq),
+      setEmojiLike: (message_id, emoji_id) => this.setEmojiLike(i, message_id, emoji_id),
       setName: group_name => this.setGroupName(i, group_name),
       setAvatar: file => this.setGroupAvatar(i, file),
       setAdmin: (user_id, enable) => this.setGroupAdmin(i, user_id, enable),

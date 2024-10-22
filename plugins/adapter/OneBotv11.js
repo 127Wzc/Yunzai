@@ -121,6 +121,18 @@ Bot.adapter.push(new class OneBotv11Adapter {
     }, msg => this.sendGroupForwardMsg(data, msg))
   }
 
+  pokeMember(data, msg) {
+    return this.sendMsg(msg, message => {
+      Bot.makeLog("info", `发送群消息：${this.makeLog(message)}`, `${data.self_id} => ${data.group_id}`)
+      return data.bot.sendApi("group_poke", {
+        group_id: data.group_id,
+        user_id: data.self_id,
+      })
+    }, msg => this.sendGroupForwardMsg(data, msg))
+  }
+
+  
+
   sendGuildMsg(data, msg) {
     return this.sendMsg(msg, message => {
       Bot.makeLog("info", `发送频道消息：${this.makeLog(message)}`, `${data.self_id}] => ${data.guild_id}-${data.channel_id}`)
@@ -697,7 +709,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
       getMemberList: () => this.getMemberList(i),
       getMemberMap: () => this.getMemberMap(i),
       pickMember: user_id => this.pickMember(i, group_id, user_id),
-      pokeMember: qq => this.sendGroupMsg(i, { type: "poke", qq }),
+      pokeMember: qq => this.pokeMember(i, qq),
       setName: group_name => this.setGroupName(i, group_name),
       setAvatar: file => this.setGroupAvatar(i, file),
       setAdmin: (user_id, enable) => this.setGroupAdmin(i, user_id, enable),

@@ -48,9 +48,9 @@ Bot.adapter.push(new class OneBotv11Adapter {
     const forward = []
     for (let i of msg) {
       if (typeof i !== "object")
-        i = { type: "text", data: { text: i }}
+        i = { type: "text", data: { text: i } }
       else if (!i.data)
-        i = { type: i.type, data: { ...i, type: undefined }}
+        i = { type: i.type, data: { ...i, type: undefined } }
 
       switch (i.type) {
         case "at":
@@ -121,25 +121,23 @@ Bot.adapter.push(new class OneBotv11Adapter {
     }, msg => this.sendGroupForwardMsg(data, msg))
   }
 
-  pokeMember(data, msg) {
-    return this.sendMsg(msg, message => {
-      Bot.makeLog("info", `发送群消息：${this.makeLog(message)}`, `${data.self_id} => ${data.group_id}`)
-      return data.bot.sendApi("group_poke", {
-        group_id: data.group_id,
-        user_id: data.self_id,
-      })
-    }, msg => this.sendGroupForwardMsg(data, msg))
+  pokeMember(data, qq) {
+    Bot.makeLog("info", `戳一戳${qq}`)
+    return data.bot.sendApi("group_poke", {
+      group_id: data.group_id,
+      user_id: qq,
+    })
   }
 
   setEmojiLike(data, message_id, emoji_id) {
     Bot.makeLog("info", `回应群消息：${this.makeLog(message_id)}`, `${data.emoji_id}`)
-      return data.bot.sendApi("set_msg_emoji_like", {
-        emoji_id: emoji_id,
-        message_id: message_id,
-      })
+    return data.bot.sendApi("set_msg_emoji_like", {
+      emoji_id: emoji_id,
+      message_id: message_id,
+    })
   }
 
-  
+
 
   sendGuildMsg(data, msg) {
     return this.sendMsg(msg, message => {
@@ -166,7 +164,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     const array = []
     for (const i of Array.isArray(msg) ? msg : [msg])
       if (typeof i === "object")
-        array.push({ ...i.data, type: i.type, name: i.data.name || i.data.file})
+        array.push({ ...i.data, type: i.type, name: i.data.name || i.data.file })
       else
         array.push({ type: "text", text: String(i) })
     return array
@@ -217,12 +215,14 @@ Bot.adapter.push(new class OneBotv11Adapter {
       if (forward.length)
         msgs.push(...await this.makeForwardMsg(forward))
       if (content.length)
-        msgs.push({ type: "node", data: {
-          name: i.nickname || "匿名消息",
-          uin: String(Number(i.user_id) || 80000000),
-          content,
-          time: i.time,
-        }})
+        msgs.push({
+          type: "node", data: {
+            name: i.nickname || "匿名消息",
+            uin: String(Number(i.user_id) || 80000000),
+            content,
+            time: i.time,
+          }
+        })
     }
     return msgs
   }
@@ -270,17 +270,18 @@ Bot.adapter.push(new class OneBotv11Adapter {
 
   async getGroupArray(data) {
     const array = (await data.bot.sendApi("get_group_list")).data
-    try { for (const guild of await this.getGuildArray(data))
-      for (const channel of await this.getGuildChannelArray({
-        ...data,
-        guild_id: guild.guild_id,
-      }))
-        array.push({
-          guild,
-          channel,
-          group_id: `${guild.guild_id}-${channel.channel_id}`,
-          group_name: `${guild.guild_name}-${channel.channel_name}`,
-        })
+    try {
+      for (const guild of await this.getGuildArray(data))
+        for (const channel of await this.getGuildChannelArray({
+          ...data,
+          guild_id: guild.guild_id,
+        }))
+          array.push({
+            guild,
+            channel,
+            group_id: `${guild.guild_id}-${channel.channel_id}`,
+            group_name: `${guild.guild_name}-${channel.channel_name}`,
+          })
     } catch (err) {
       //Bot.makeLog("error", ["获取频道列表错误", err])
     }
@@ -533,7 +534,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
   }
 
   async sendGroupFile(data, file, folder, name = path.basename(file)) {
-    Bot.makeLog("info", `发送群文件：${folder||""}/${name}(${file})`, `${data.self_id} => ${data.group_id}`)
+    Bot.makeLog("info", `发送群文件：${folder || ""}/${name}(${file})`, `${data.self_id} => ${data.group_id}`)
     return data.bot.sendApi("upload_group_file", {
       group_id: data.group_id,
       folder,
@@ -629,7 +630,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
       getInfo: () => this.getFriendInfo(i),
       getAvatarUrl: () => i.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`,
       thumbUp: times => this.sendLike(i, times),
-      getLocalFileInfo: file_id => this.getLocalFileInfo(i,file_id)
+      getLocalFileInfo: file_id => this.getLocalFileInfo(i, file_id)
     }
   }
 
@@ -794,7 +795,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     data.bot.sendApi("_set_model_show", {
       model: data.bot.model,
       model_show: data.bot.model,
-    }).catch(() => {})
+    }).catch(() => { })
 
     data.bot.info = (await data.bot.sendApi("get_login_info").catch(i => i.error)).data
     data.bot.guild_info = (await data.bot.sendApi("get_guild_service_profile").catch(i => i.error)).data
@@ -843,7 +844,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
         data.message_type = "group"
         data.group_id = `${data.guild_id}-${data.channel_id}`
         Bot.makeLog("info", `频道消息：[${data.sender.nickname}] ${Bot.String(data.message)}`, `${data.self_id} <= ${data.group_id}, ${data.user_id}`)
-        Object.defineProperty(data, "friend", { get() { return this.member || {}}})
+        Object.defineProperty(data, "friend", { get() { return this.member || {} } })
         break
       default:
         Bot.makeLog("warn", `未知消息：${logger.magenta(data.raw)}`, data.self_id)
@@ -959,7 +960,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
 
     if (data.guild_id && data.channel_id) {
       data.group_id = `${data.guild_id}-${data.channel_id}`
-      Object.defineProperty(data, "friend", { get() { return this.member || {}}})
+      Object.defineProperty(data, "friend", { get() { return this.member || {} } })
     }
 
     Bot.em(`${data.post_type}.${data.notice_type}.${data.sub_type}`, data)

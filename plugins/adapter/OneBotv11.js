@@ -102,7 +102,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
   sendFriendMsg(data, msg) {
     return this.sendMsg(msg, message => {
       Bot.makeLog("info", `发送好友消息：${this.makeLog(message)}`, `${data.self_id} => ${data.user_id}`, true)
-      data.bot.sendApi("send_msg", {
+      return data.bot.sendApi("send_msg", {
         message_type: "private",
         user_id: data.user_id,
         message,
@@ -154,6 +154,13 @@ Bot.adapter.push(new class OneBotv11Adapter {
     })
   }
 
+  async getLocalFileInfo(data, file_id) {
+    const msg = (await data.bot.sendApi("get_file", { file_id })).data
+    if (msg?.message)
+      msg.message = this.parseMsg(msg.message)
+    return msg
+  }
+
   sendGuildMsg(data, msg) {
     return this.sendMsg(msg, message => {
       Bot.makeLog("info", `发送频道消息：${this.makeLog(message)}`, `${data.self_id}] => ${data.guild_id}-${data.channel_id}`, true)
@@ -192,11 +199,17 @@ Bot.adapter.push(new class OneBotv11Adapter {
     return msg
   }
 
-  async getLocalFileInfo(data, file_id) {
-    const msg = (await data.bot.sendApi("get_file", { file_id })).data
-    if (msg?.message)
-      msg.message = this.parseMsg(msg.message)
-    return msg
+  async getFriendMsgHistory(data, message_seq, count) {
+    const msgs = (await data.bot.sendApi("get_friend_msg_history", {
+      user_id: data.user_id,
+      message_seq,
+      count,
+    })).data?.messages
+
+    for (const i of Array.isArray(msgs) ? msgs : [msgs])
+      if (i?.message)
+        i.message = this.parseMsg(i.message)
+    return msgs
   }
 
   async getGroupMsgHistory(data, message_seq, count) {
@@ -599,13 +612,19 @@ Bot.adapter.push(new class OneBotv11Adapter {
 
   getGroupFs(data) {
     return {
-      upload: (file, folder, name) => this.sendGroupFile(data, file, folder, name),
-      rm: (file_id, busid) => this.deleteGroupFile(data, file_id, busid),
-      mkdir: name => this.createGroupFileFolder(data, name),
-      df: () => this.getGroupFileSystemInfo(data),
-      ls: folder_id => this.getGroupFiles(data, folder_id),
-      download: (file_id, busid) => this.getGroupFileUrl(data, file_id, busid),
+      upload: this.sendGroupFile.bind(this, data),
+      rm: this.deleteGroupFile.bind(this, data),
+      mkdir: this.createGroupFileFolder.bind(this, data),
+      df: this.getGroupFileSystemInfo.bind(this, data),
+      ls: this.getGroupFiles.bind(this, data),
+      download: this.getGroupFileUrl.bind(this, data),
     }
+  }
+
+  deleteFriend(data) {
+    Bot.makeLog("info", "删除好友", `${data.self_id} => ${data.user_id}`, true)
+    return data.bot.sendApi("delete_friend", { user_id: data.user_id })
+      .finally(this.getFriendMap.bind(this, data))
   }
 
   setFriendAddRequest(data, flag, approve, remark) {
@@ -616,13 +635,29 @@ Bot.adapter.push(new class OneBotv11Adapter {
     })
   }
 
-  setGroupAddRequest(data, flag, sub_type, approve, reason) {
+  setGroupAddRequest(data, flag, approve, reason, sub_type = "add") {
     return data.bot.sendApi("set_group_add_request", {
       flag,
       sub_type,
       approve,
       reason,
     })
+  }
+
+  getGroupHonorInfo(data) {
+    return data.bot.sendApi("get_group_honor_info", { group_id: data.group_id })
+  }
+
+  getEssenceMsg(data) {
+    return data.bot.sendApi("get_essence_msg_list", { group_id: data.group_id })
+  }
+
+  setEssenceMsg(data, message_id) {
+    return data.bot.sendApi("set_essence_msg", { message_id })
+  }
+
+  deleteEssenceMsg(data, message_id) {
+    return data.bot.sendApi("delete_essence_msg", { message_id })
   }
 
   pickFriend(data, user_id) {
@@ -633,16 +668,18 @@ Bot.adapter.push(new class OneBotv11Adapter {
     }
     return {
       ...i,
-      sendMsg: msg => this.sendFriendMsg(i, msg),
-      getMsg: message_id => this.getMsg(i, message_id),
-      recallMsg: message_id => this.recallMsg(i, message_id),
-      getForwardMsg: message_id => this.getForwardMsg(i, message_id),
-      sendForwardMsg: msg => this.sendFriendForwardMsg(i, msg),
-      sendFile: (file, name) => this.sendFriendFile(i, file, name),
-      getInfo: () => this.getFriendInfo(i),
-      getAvatarUrl: () => i.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`,
-      thumbUp: times => this.sendLike(i, times),
-      getLocalFileInfo: file_id => this.getLocalFileInfo(i, file_id)
+      sendMsg: this.sendFriendMsg.bind(this, i),
+      getMsg: this.getMsg.bind(this, i),
+      recallMsg: this.recallMsg.bind(this, i),
+      getForwardMsg: this.getForwardMsg.bind(this, i),
+      sendForwardMsg: this.sendFriendForwardMsg.bind(this, i),
+      sendFile: this.sendFriendFile.bind(this, i),
+      getInfo: this.getFriendInfo.bind(this, i),
+      getAvatarUrl() { return this.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}` },
+      getChatHistory: this.getFriendMsgHistory.bind(this, i),
+      thumbUp: this.sendLike.bind(this, i),
+      delete: this.deleteFriend.bind(this, i),
+      getLocalFileInfo: this.getLocalFileInfo.bind(this, i)
     }
   }
 
@@ -658,13 +695,12 @@ Bot.adapter.push(new class OneBotv11Adapter {
       return {
         ...this.pickGroup(i, group_id),
         ...i,
-        getInfo: () => this.getGuildMemberInfo(i),
+        getInfo: this.getGuildMemberInfo.bind(this, i),
         getAvatarUrl: async () => (await this.getGuildMemberInfo(i)).avatar_url,
       }
     }
 
     const i = {
-      ...data.bot.fl.get(user_id),
       ...data.bot.gml.get(group_id)?.get(user_id),
       ...data,
       group_id,
@@ -673,14 +709,14 @@ Bot.adapter.push(new class OneBotv11Adapter {
     return {
       ...this.pickFriend(i, user_id),
       ...i,
-      getInfo: () => this.getMemberInfo(i),
-      getAvatarUrl: () => i.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`,
-      poke: () => this.pokeMember(i, qq),
-      mute: duration => this.setGroupBan(i, i.user_id, duration),
-      kick: reject_add_request => this.setGroupKick(i, i.user_id, reject_add_request),
+      getInfo: this.getMemberInfo.bind(this, i),
+      getAvatarUrl() { return this.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}` },
+      poke: this.pokeMember.bind(this, i),
+      mute: this.setGroupBan.bind(this, i, user_id),
+      kick: this.setGroupKick.bind(i, user_id),
       get is_friend() { return data.bot.fl.has(user_id) },
-      get is_owner() { return i.role === "owner" },
-      get is_admin() { return i.role === "admin" || this.is_owner },
+      get is_owner() { return this.role === "owner" },
+      get is_admin() { return this.role === "admin" || this.is_owner },
     }
   }
 
@@ -695,18 +731,18 @@ Bot.adapter.push(new class OneBotv11Adapter {
       }
       return {
         ...i,
-        sendMsg: msg => this.sendGuildMsg(i, msg),
-        getMsg: message_id => this.getMsg(i, message_id),
-        recallMsg: message_id => this.recallMsg(i, message_id),
-        getForwardMsg: message_id => this.getForwardMsg(i, message_id),
-        getInfo: () => this.getGuildInfo(i),
-        getChannelArray: () => this.getGuildChannelArray(i),
-        getChannelList: () => this.getGuildChannelList(i),
-        getChannelMap: () => this.getGuildChannelMap(i),
-        getMemberArray: () => this.getGuildMemberArray(i),
-        getMemberList: () => this.getGuildMemberList(i),
-        getMemberMap: () => this.getGuildMemberMap(i),
-        pickMember: user_id => this.pickMember(i, group_id, user_id),
+        sendMsg: this.sendGuildMsg.bind(this, i),
+        getMsg: this.getMsg.bind(this, i),
+        recallMsg: this.recallMsg.bind(this, i),
+        getForwardMsg: this.getForwardMsg.bind(this, i),
+        getInfo: this.getGuildInfo.bind(this, i),
+        getChannelArray: this.getGuildChannelArray.bind(this, i),
+        getChannelList: this.getGuildChannelList.bind(this, i),
+        getChannelMap: this.getGuildChannelMap.bind(this, i),
+        getMemberArray: this.getGuildMemberArray.bind(this, i),
+        getMemberList: this.getGuildMemberList.bind(this, i),
+        getMemberMap: this.getGuildMemberMap.bind(this, i),
+        pickMember: this.pickMember.bind(this, i),
       }
     }
 
@@ -717,35 +753,37 @@ Bot.adapter.push(new class OneBotv11Adapter {
     }
     return {
       ...i,
-      sendMsg: msg => this.sendGroupMsg(i, msg),
-      getMsg: message_id => this.getMsg(i, message_id),
-      recallMsg: message_id => this.recallMsg(i, message_id),
-      getForwardMsg: message_id => this.getForwardMsg(i, message_id),
-      sendForwardMsg: msg => this.sendGroupForwardMsg(i, msg),
+      sendMsg: this.sendGroupMsg.bind(this, i),
+      getMsg: this.getMsg.bind(this, i),
+      recallMsg: this.recallMsg.bind(this, i),
+      getForwardMsg: this.getForwardMsg.bind(this, i),
+      sendForwardMsg: this.sendGroupForwardMsg.bind(this, i),
       sendFile: (file, name) => this.sendGroupFile(i, file, undefined, name),
-      getInfo: () => this.getGroupInfo(i),
-      getAvatarUrl: () => i.avatar || `https://p.qlogo.cn/gh/${group_id}/${group_id}/0`,
-      getChatHistory: (seq, cnt) => this.getGroupMsgHistory(i, seq, cnt),
-      getMemberArray: () => this.getMemberArray(i),
-      getMemberList: () => this.getMemberList(i),
-      getMemberMap: () => this.getMemberMap(i),
-      pickMember: user_id => this.pickMember(i, group_id, user_id),
-      pokeMember: qq => this.pokeMember(i, qq),
-      setEmojiLike: (message_id, emoji_id) => this.setEmojiLike(i, message_id, emoji_id),
-      getAiCharacters: (type) => this.getAiCharacters(i, type),
-      sendGroupAiRecord: (character_id,text) => this.sendGroupAiRecord(i, character_id, text),
-      setName: group_name => this.setGroupName(i, group_name),
-      setAvatar: file => this.setGroupAvatar(i, file),
-      setAdmin: (user_id, enable) => this.setGroupAdmin(i, user_id, enable),
-      setCard: (user_id, card) => this.setGroupCard(i, user_id, card),
-      setTitle: (user_id, special_title, duration) => this.setGroupTitle(i, user_id, special_title, duration),
-      sign: () => this.sendGroupSign(i),
-      muteMember: (user_id, duration) => this.setGroupBan(i, user_id, duration),
-      muteAll: enable => this.setGroupWholeKick(i, enable),
-      kickMember: (user_id, reject_add_request) => this.setGroupKick(i, user_id, reject_add_request),
-      quit: is_dismiss => this.setGroupLeave(i, is_dismiss),
-      getLocalFileInfo: file_id => this.getLocalFileInfo(i, file_id),
+      getInfo: this.getGroupInfo.bind(this, i),
+      getAvatarUrl() { return this.avatar || `https://p.qlogo.cn/gh/${group_id}/${group_id}/0` },
+      getChatHistory: this.getGroupMsgHistory.bind(this, i),
+      getHonorInfo: this.getGroupHonorInfo.bind(this, i),
+      getEssence: this.getEssenceMsg.bind(this, i),
+      getMemberArray: this.getMemberArray.bind(this, i),
+      getMemberList: this.getMemberList.bind(this, i),
+      getMemberMap: this.getMemberMap.bind(this, i),
+      pickMember: this.pickMember.bind(this, i, group_id),
+      pokeMember: this.pokeMember.bind(this, i),
+      setEmojiLike: this.setEmojiLike.bind(this, i),
+      getAiCharacters: this.getAiCharacters.bind(this, i),
+      sendGroupAiRecord: this.sendGroupAiRecord.bind(this, i),
+      setName: this.setGroupName.bind(this, i),
+      setAvatar: this.setGroupAvatar.bind(this, i),
+      setAdmin: this.setGroupAdmin.bind(this, i),
+      setCard: this.setGroupCard.bind(this, i),
+      setTitle: this.setGroupTitle.bind(this, i),
+      sign: this.sendGroupSign.bind(this, i),
+      muteMember: this.setGroupBan.bind(this, i),
+      muteAll: this.setGroupWholeKick.bind(this, i),
+      kickMember: this.setGroupKick.bind(this, i),
+      quit: this.setGroupLeave.bind(this, i),
       fs: this.getGroupFs(i),
+      getLocalFileInfo: this.getLocalFileInfo.bind(this, i),
       get is_owner() { return data.bot.gml.get(group_id)?.get(data.self_id)?.role === "owner" },
       get is_admin() { return data.bot.gml.get(group_id)?.get(data.self_id)?.role === "admin" || this.is_owner },
     }
@@ -755,7 +793,7 @@ Bot.adapter.push(new class OneBotv11Adapter {
     Bot[data.self_id] = {
       adapter: this,
       ws: ws,
-      sendApi: (action, params) => this.sendApi(data, ws, action, params),
+      sendApi: this.sendApi.bind(this, data, ws),
       stat: {
         start_time: data.time,
         stat: {},
@@ -773,30 +811,33 @@ Bot.adapter.push(new class OneBotv11Adapter {
       get nickname() { return this.info.nickname },
       get avatar() { return `https://q.qlogo.cn/g?b=qq&s=0&nk=${this.uin}` },
 
-      setProfile: profile => this.setProfile(data, profile),
+      setProfile: this.setProfile.bind(this, data),
       setNickname: nickname => this.setProfile(data, { nickname }),
-      setAvatar: file => this.setAvatar(data, file),
+      setAvatar: this.setAvatar.bind(this, data),
 
-      pickFriend: user_id => this.pickFriend(data, user_id),
+      pickFriend: this.pickFriend.bind(this, data),
       get pickUser() { return this.pickFriend },
-      getFriendArray: () => this.getFriendArray(data),
-      getFriendList: () => this.getFriendList(data),
-      getFriendMap: () => this.getFriendMap(data),
+      getFriendArray: this.getFriendArray.bind(this, data),
+      getFriendList: this.getFriendList.bind(this, data),
+      getFriendMap: this.getFriendMap.bind(this, data),
       fl: new Map,
 
-      pickMember: (group_id, user_id) => this.pickMember(data, group_id, user_id),
-      pickGroup: group_id => this.pickGroup(data, group_id),
-      getGroupArray: () => this.getGroupArray(data),
-      getGroupList: () => this.getGroupList(data),
-      getGroupMap: () => this.getGroupMap(data),
-      getGroupMemberMap: () => this.getGroupMemberMap(data),
+      pickMember: this.pickMember.bind(this, data),
+      pickGroup: this.pickGroup.bind(this, data),
+      getGroupArray: this.getGroupArray.bind(this, data),
+      getGroupList: this.getGroupList.bind(this, data),
+      getGroupMap: this.getGroupMap.bind(this, data),
+      getGroupMemberMap: this.getGroupMemberMap.bind(this, data),
       gl: new Map,
       gml: new Map,
 
       request_list: [],
-      getSystemMsg: () => data.bot.request_list,
-      setFriendAddRequest: (flag, approve, remark) => this.setFriendAddRequest(data, flag, approve, remark),
-      setGroupAddRequest: (flag, sub_type, approve, reason) => this.setGroupAddRequest(data, flag, sub_type, approve, reason),
+      getSystemMsg() { return this.request_list },
+      setFriendAddRequest: this.setFriendAddRequest.bind(this, data),
+      setGroupAddRequest: this.setGroupAddRequest.bind(this, data),
+
+      setEssenceMessage: this.setEssenceMsg.bind(this, data),
+      removeEssenceMessage: this.deleteEssenceMsg.bind(this, data),
 
       cookies: {},
       getCookies(domain) { return this.cookies[domain] },
@@ -1002,11 +1043,11 @@ Bot.adapter.push(new class OneBotv11Adapter {
       case "friend":
         Bot.makeLog("info", `加好友请求：${data.comment}(${data.flag})`, `${data.self_id} <= ${data.user_id}`, true)
         data.sub_type = "add"
-        data.approve = approve => data.bot.setFriendAddRequest(data.flag, approve)
+        data.approve = function (approve, remark) { return this.bot.setFriendAddRequest(this.flag, approve, remark) }
         break
       case "group":
         Bot.makeLog("info", `加群请求：${data.sub_type} ${data.comment}(${data.flag})`, `${data.self_id} <= ${data.group_id}, ${data.user_id}`, true)
-        data.approve = approve => data.bot.setGroupAddRequest(data.flag, data.sub_type, approve)
+        data.approve = function (approve, reason) { return this.bot.setGroupAddRequest(this.flag, approve, reason, this.sub_type) }
         break
       default:
         Bot.makeLog("warn", `未知请求：${logger.magenta(data.raw)}`, data.self_id)

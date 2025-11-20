@@ -121,6 +121,13 @@ bash <(curl -L https://gitee.com/TimeRainStarSky/Yunzai/raw/main/lib/tools/docke
 
 </details>
 
+<details><summary>Windows 安装程序</summary>
+
+- [🐱 GitHub](https://GitHub.com/TimeRainStarSky/Yunzai-Windows-Installer/releases)
+- [🇬 GitCode](https://GitCode.com/TimeRainStarSky/Yunzai-Windows-Installer/releases)
+
+</details>
+
 ## 使用教程
 
 1. 推荐安装插件(可选)
@@ -238,6 +245,11 @@ ws://localhost:2536/GSUIDCore
 </details>
 
 3. 设置主人：发送 `#设置主人`，日志获取验证码并发送
+
+## 开发文档
+
+- [类型库](https://github.com/KaguyaJs/TRSS-Yunzai-Types)
+- [oicq](https://oicqjs.github.io/oicq)
 
 ## 班级群(¿
 

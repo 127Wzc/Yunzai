@@ -1,3 +1,80 @@
+# Fork 概要
+
+- 适配 [Lagrange.Onebot v1](https://github.com/misaka20002/Lagrange.Core)
+- 已全面适配 [Napcat](https://napneko.github.io/guide/napcat)
+- 11月22日更新： 由于目前 Lagr 已经关闭签名服务器，推荐转移到纯本地签名的 Napcat 平台
+
+## 已调整适配器适配
+
+| method              | api                     | about                                  |
+| ------------------- | ----------------------- | -------------------------------------- |
+| pokeMember          | group_poke              | 群聊戳一戳                             |
+| getFriendMsgHistory | get_friend_msg_history  | 适配 message_id 以获取历史消息         |
+| getGroupMsgHistory  | get_group_msg_history   | 适配 message_id 以获取历史消息         |
+| ~~sendFriendFile~~  | ~~upload_private_file~~ | ~~发送文件，适配 file 仅支持本地Path~~ |
+| ~~sendGroupFile~~   | ~~upload_group_file~~   | ~~发送文件，适配 file 仅支持本地Path~~ |
+
+~~### 呆毛 Fork 版 Lagrange.Onebot~~
+
+~~- 已经从源头（Lagrange.Onebot）上修复了 `upload_private_file` `upload_group_file` 文件 Base64 发送~~
+~~- 下载地址：[呆毛 Fork 版 Lagrange.Onebot](https://github.com/misaka20002/Lagrange.Core)~~
+
+## 已调整参数
+
+| parameter | about                          |
+| --------- | ------------------------------ |
+| e.source  | icqq 引用消息参数 e.source.seq |
+
+## 已调整逻辑
+
+| parameter | about                                                                              |
+| --------- | ---------------------------------------------------------------------------------- |
+| e.reply   | (msg, quote, { recallMsg, at }) recallMsg: Bot定时撤回回复消息时将不会撤回命令消息 |
+
+## 已增加的 NapCat Onebot Api
+
+| method                | api               | about                |
+| --------------------- | ----------------- | -------------------- |
+| setEmojiLike[^1]      | setEmojiLike      | 贴标签(设置表情点赞) |
+| getAiCharacters[^1]   | getAiCharacters   | 获取群AI音色信息     |
+| sendGroupAiRecord[^1] | sendGroupAiRecord | 获发送群AI语音       |
+| getLocalFileInfo[^1]  | getLocalFileInfo  | 获取文件信息         |
+
+[^1]: 由 [@127Wzc](https://github.com/127Wzc) 贡献添加
+
+## Fix bug
+
+- 修复锅巴设置中当插件的配置文件超过 1mb 时保存失败（PayloadTooLargeError）
+
+## Add 新功能
+
+- `#发言榜`
+
+
+# 安装方法
+
+### 方法一 常规安装
+
+- 看 [安装教程](#安装教程)
+
+### 方法二 切换 TRSS 版本到本仓库
+
+```bash
+# 在你的 TRSS 根目录执行
+git remote set-url origin https://github.com/AIGC-Yunzai/TRSS-Yunzai-NapC.git
+# 或使用 Git 代理：
+# git remote set-url origin https://ghfast.top/https://github.com/AIGC-Yunzai/TRSS-Yunzai-NapC.git
+git fetch --all
+git reset --hard origin/main
+pnpm i
+```
+
+### 方法三 直接替换文件
+
+```text
+直接把本仓库的 plugins\adapter\OneBotv11.js 和 lib\plugins\loader.js 覆盖你的文件即可，但使用 #更新 后需要重新覆盖。
+```
+
 <div align="center">
 
 # TRSS-Yunzai
@@ -29,10 +106,9 @@ Yunzai 应用端，支持多账号，支持协议端：OneBotv11、ComWeChat、G
 
 <details><summary>脚本安装</summary>
 
-- [🌌 TRSS](https://TRSS.me)
-- [🔼 Vercel](https://TRSS-Script.Vercel.app)
-- [🐱 GitHub](https://TimeRainStarSky.GitHub.io/TRSS_Script)
-- [🇬 Gitee](https://Gitee.com/TimeRainStarSky/TRSS_Script)
+```bash
+bash <(curl -sL https://gitee.com/Misaka21011/Yunzai-Bot-Shell/raw/master/install.sh)
+```
 
 </details>
 
@@ -46,9 +122,8 @@ Yunzai 应用端，支持多账号，支持协议端：OneBotv11、ComWeChat、G
 请根据网络情况选择使用 GitHub 或 Gitee 安装
 
 ```sh
-git clone --depth 1 https://github.com/TimeRainStarSky/Yunzai
-git clone --depth 1 https://gitee.com/TimeRainStarSky/Yunzai
-cd Yunzai
+git clone https://github.com/AIGC-Yunzai/TRSS-Yunzai-NapC.git ./TRSS-Yunzai
+cd TRSS-Yunzai
 ```
 
 2. 安装 [pnpm](https://pnpm.io/zh/installation) 和依赖
@@ -60,19 +135,19 @@ pnpm i
 
 3. 前台运行
 
-| 操作 | 命令 |
-| ---- | ---- |
-| 启动 | node . |
-| 停止 | node . stop |
+| 操作 | 命令          |
+| ---- | ------------- |
+| 启动 | node .        |
+| 停止 | node . stop   |
 | 守护 | node . daemon |
 
 4. 使用 [pm2](https://pm2.keymetrics.io) 后台运行
 
-| 操作 | 命令 |
-| ---- | ---- |
+| 操作 | 命令       |
+| ---- | ---------- |
 | 启动 | pnpm start |
-| 停止 | pnpm stop |
-| 日志 | pnpm log |
+| 停止 | pnpm stop  |
+| 日志 | pnpm log   |
 
 5. 开机自启
 
@@ -91,17 +166,17 @@ bash <(curl -L https://github.com/TimeRainStarSky/Yunzai/raw/main/lib/tools/dock
 bash <(curl -L https://gitee.com/TimeRainStarSky/Yunzai/raw/main/lib/tools/docker.sh)
 ```
 
-| 参数 | 描述 | 默认值 |
-| ---- | ---- | ------ |
-| DIR | 安装文件夹 | $HOME/Yunzai |
-| CMD | 启动命令 | tsyz |
-| CMDPATH | 命令文件夹 | /usr/local/bin |
-| DKNAME | 容器名 | Yunzai |
-| DKURL | Docker 源 | docker.m.daocloud.io |
-| GITURL | GIT 源 | https://gitee.com/TimeRainStarSky/Yunzai |
-| APTURL | APT 源 | mirrors.ustc.edu.cn |
-| APTDEP | APT 依赖 | chromium fonts-lxgw-wenkai fonts-noto-color-emoji |
-| NPMURL | NPM 源 | https://registry.npmmirror.com |
+| 参数    | 描述       | 默认值                                            |
+| ------- | ---------- | ------------------------------------------------- |
+| DIR     | 安装文件夹 | $HOME/Yunzai                                      |
+| CMD     | 启动命令   | tsyz                                              |
+| CMDPATH | 命令文件夹 | /usr/local/bin                                    |
+| DKNAME  | 容器名     | Yunzai                                            |
+| DKURL   | Docker 源  | docker.m.daocloud.io                              |
+| GITURL  | GIT 源     | https://gitee.com/TimeRainStarSky/Yunzai          |
+| APTURL  | APT 源     | mirrors.ustc.edu.cn                               |
+| APTDEP  | APT 依赖   | chromium fonts-lxgw-wenkai fonts-noto-color-emoji |
+| NPMURL  | NPM 源     | https://registry.npmmirror.com                    |
 
 - 参数修改方法
 
@@ -109,15 +184,15 @@ bash <(curl -L https://gitee.com/TimeRainStarSky/Yunzai/raw/main/lib/tools/docke
 参数1="值1" 参数2="值2" bash <(x)
 ```
 
-| 操作 | 命令 |
-| ---- | ---- |
-| 连接 | tsyz |
-| 断开 | Ctrl+P+Q |
-| 启动 | tsyz start |
-| 重启 | tsyz restart |
-| 停止 | tsyz stop |
+| 操作 | 命令          |
+| ---- | ------------- |
+| 连接 | tsyz          |
+| 断开 | Ctrl+P+Q      |
+| 启动 | tsyz start    |
+| 重启 | tsyz restart  |
+| 停止 | tsyz stop     |
 | 日志 | tsyz log 行数 |
-| 命令 | tsyz 命令 |
+| 命令 | tsyz 命令     |
 
 </details>
 
@@ -259,7 +334,7 @@ ws://localhost:2536/GSUIDCore
 
 ## 致谢
 
-| Nickname | Contribution |
-| -------- | ------------ |
-| [Yunzai-Bot](../../../../Le-niao/Yunzai-Bot) | 乐神的 Yunzai-Bot |
+| Nickname                                              | Contribution       |
+| ----------------------------------------------------- | ------------------ |
+| [Yunzai-Bot](../../../../Le-niao/Yunzai-Bot)          | 乐神的 Yunzai-Bot  |
 | [Miao-Yunzai](../../../../yoimiya-kokomi/Miao-Yunzai) | 喵喵的 Miao-Yunzai |

@@ -32,8 +32,8 @@ Bot.adapter.push(
             throw Bot.makeError(data.msg || data.wording, request, { error: data })
           return data.data
             ? new Proxy(data, {
-                get: (target, prop) => target.data[prop] ?? target[prop],
-              })
+              get: (target, prop) => target.data[prop] ?? target[prop],
+            })
             : data
         })
         .finally(() => {
@@ -42,7 +42,12 @@ Bot.adapter.push(
         })
     }
 
+    /** 文件转 base64 */
     async makeFile(file, opts) {
+      // 如果文件已经是 base64 格式，直接返回
+      if (typeof file === 'string' && file.startsWith('base64://')) {
+        return file
+      }
       file = await Bot.Buffer(file, {
         http: true,
         size: 10485760,
@@ -77,7 +82,8 @@ Bot.adapter.push(
             break
         }
 
-        if (i.data.file) i.data.file = await this.makeFile(i.data.file)
+        if (i.data.file) i.data.file = await this.makeFile(i.data.file) // 原版
+        // if (i.data.file && i.type != "file") i.data.file = await this.makeFile(i.data.file) // 2025年9月27日 已修复 拉格朗日，file 可以使用 base64 了 // 特殊匹配拉格朗日，segment.flie 直接使用文件路径
 
         msgs.push(i)
       }
@@ -121,14 +127,6 @@ Bot.adapter.push(
       )
     }
 
-    pokeMember(data, qq) {
-      Bot.makeLog("info", `戳一戳${qq}`, true)
-      return data.bot.sendApi("group_poke", {
-        group_id: data.group_id,
-        user_id: qq,
-      })
-    }
-  
     setEmojiLike(data, message_id, emoji_id) {
       Bot.makeLog("info", `回应群消息：${this.makeLog(message_id)}`, `${data.emoji_id}`, true)
       return data.bot.sendApi("set_msg_emoji_like", {
@@ -228,6 +226,7 @@ Bot.adapter.push(
         await data.bot.sendApi("get_friend_msg_history", {
           user_id: data.user_id,
           message_seq,
+          message_id: message_seq, // 适配 拉格朗日 的非 onebot11 规范
           count,
           reverseOrder,
         })
@@ -243,6 +242,7 @@ Bot.adapter.push(
         await data.bot.sendApi("get_group_msg_history", {
           group_id: data.group_id,
           message_seq,
+          message_id: message_seq, // 适配 拉格朗日 的非 onebot11 规范
           count,
           reverseOrder,
         })
@@ -648,7 +648,8 @@ Bot.adapter.push(
       )
       return data.bot.sendApi("upload_private_file", {
         user_id: data.user_id,
-        file: (await this.makeFile(file, { file: true })).replace("file://", ""),
+        file: (await this.makeFile(file, { file: true })).replace("file://", ""), // 2025年9月27日 已修复 拉格朗日，file 可以使用 base64 了 // 匹配拉格朗日，直接使用文件路径
+        file,
         name,
       })
     }
@@ -663,8 +664,26 @@ Bot.adapter.push(
       return data.bot.sendApi("upload_group_file", {
         group_id: data.group_id,
         folder,
-        file: (await this.makeFile(file, { file: true })).replace("file://", ""),
+        file: (await this.makeFile(file, { file: true })).replace("file://", ""), // 2025年9月27日 已修复 拉格朗日，file 可以使用 base64 了 // 匹配拉格朗日，直接使用文件路径
+        file,
         name,
+      })
+    }
+
+    // 匹配拉格朗日非 onebot11 规范的戳一戳
+    async sendFriendPoke(data, user_id) {
+      Bot.makeLog("info", `发送好友戳一戳：`, `${data.self_id} => ${user_id}`, true)
+      return data.bot.sendApi("friend_poke", {
+        user_id,
+      })
+    }
+
+    // 匹配拉格朗日非 onebot11 规范的戳一戳
+    async sendGroupPoke(data, user_id) {
+      Bot.makeLog("info", `发送群戳一戳：`, `${data.self_id} => ${data.group_id}, ${user_id}`, true)
+      return data.bot.sendApi("group_poke", {
+        group_id: data.group_id,
+        user_id,
       })
     }
 
@@ -787,7 +806,8 @@ Bot.adapter.push(
         getChatHistory: this.getFriendMsgHistory.bind(this, i),
         thumbUp: this.sendLike.bind(this, i),
         delete: this.deleteFriend.bind(this, i),
-        getLocalFileInfo: this.getLocalFileInfo.bind(this, i)
+        poke: this.sendFriendPoke.bind(this, user_id), // 匹配拉格朗日非 onebot11 规范的戳一戳（但当前版本的拉格朗日的戳一戳无法使用）
+        getLocalFileInfo: this.getLocalFileInfo.bind(this, i),
       }
     }
 
@@ -821,7 +841,8 @@ Bot.adapter.push(
         getAvatarUrl() {
           return this.avatar || `https://q.qlogo.cn/g?b=qq&s=0&nk=${user_id}`
         },
-        poke: this.pokeMember.bind(this, i),
+        // poke: this.sendGroupMsg.bind(this, i, { type: "poke", qq: user_id }), // onebot11 规范的戳一戳
+        poke: this.sendGroupPoke.bind(this, user_id), // 匹配拉格朗日非 onebot11 规范的戳一戳（但当前版本的拉格朗日的戳一戳无法使用）
         mute: this.setGroupBan.bind(this, i, user_id),
         kick: this.setGroupKick.bind(this, i, user_id),
         get is_friend() {
@@ -886,7 +907,8 @@ Bot.adapter.push(
         getMemberList: this.getMemberList.bind(this, i),
         getMemberMap: this.getMemberMap.bind(this, i),
         pickMember: this.pickMember.bind(this, i, group_id),
-        pokeMember: this.pokeMember.bind(this, i),
+        // pokeMember: qq => this.sendGroupMsg(i, { type: "poke", qq }), // onebot11 规范的戳一戳
+        pokeMember: this.sendGroupPoke.bind(this, i), // 匹配拉格朗日非 onebot11 规范的戳一戳（但当前版本的拉格朗日的戳一戳无法使用）
         setEmojiLike: this.setEmojiLike.bind(this, i),
         getAiCharacters: this.getAiCharacters.bind(this, i),
         sendGroupAiRecord: this.sendGroupAiRecord.bind(this, i),
@@ -1000,7 +1022,7 @@ Bot.adapter.push(
           model: data.bot.model,
           model_show: data.bot.model,
         })
-        .catch(() => {})
+        .catch(() => { })
 
       data.bot.info = (await data.bot.sendApi("get_login_info").catch(i => i.error)).data
       data.bot.guild_info = (
